@@ -1,0 +1,193 @@
+services:
+  # MongoDB Database Service 
+  mongodb:
+    image: mongo:latest
+    container_name: mongodb-container
+    
+    # Expose MongoDB port to host machine
+    ports:
+      - "${MONGODB_PORT:-27017}:27017"
+    
+    # Persistent data storage
+    volumes:
+      - mongodb_data:/data/db
+      - mongodb_config:/data/configdb
+    
+    # Environment variables
+    environment:
+      - MONGO_INITDB_DATABASE=${MONGODB_DATABASE:-drive_db}
+    
+    # Run MongoDB silently
+    # Use --quiet and --logpath /dev/null to suppress all output
+    # mongod runs as PID 1 directly for proper signal handling
+    command: mongod --quiet --logpath /dev/null
+    
+    # Health check to ensure MongoDB is ready to accept connections
+    # Simple ping command that works reliably even with output suppressed
+    healthcheck:
+      test: ["CMD-SHELL", "mongosh --eval 'db.adminCommand(\"ping\")' --quiet || exit 1"]
+      interval: 2s
+      timeout: 5s
+      retries: 20
+      start_period: 40s
+    
+    # Connect to app network
+    networks:
+      - app-network
+    
+    # Restart policy
+    restart: unless-stopped
+
+  # Service for the TCP Server 
+  # Stores file content - metadata is stored in MongoDB
+  server:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: my-cpp-project
+    container_name: cpp-server-container
+    
+    # Environment variables 
+    environment:
+      - STORAGE_DIR=/tmp/data
+      - SERVER_PORT=${SERVER_PORT:-8080}  # Default to 8080 if not set
+      - THREAD_POOL_SIZE=${THREAD_POOL_SIZE:-20} # Thread pool size control
+    #Enables local storage
+    volumes:
+      - ./storage:/tmp/data 
+    
+    # Expose port to host machine (use variable or default to 8080)
+    ports:
+      - "${SERVER_PORT:-8080}:${SERVER_PORT:-8080}"
+    
+    # Command to run the server with port argument
+    # Usage: docker-compose run --service-ports --rm server
+    # Usage with custom port: SERVER_PORT=9090 docker-compose run --service-ports --rm server
+    # Example: docker-compose run --service-ports --rm server ./myApp 8080
+    command: ./myApp ${SERVER_PORT:-8080}
+    
+    networks:
+      - app-network
+
+  # Service for the Node.js Web Server (Exercise 3)
+  web-server:
+    build:
+      context: .
+      dockerfile: ./src/web-server/Dockerfile
+    image: drive-web-server
+    container_name: web-server-container
+    
+    # Environment variables for MongoDB connection, TCP server (optional), and JWT authentication
+    environment:
+      - PORT=${WEB_PORT:-3000}
+      - MONGODB_URI=${MONGODB_URI:-mongodb://mongodb:27017/drive_db}
+      - TCP_SERVER_HOST=${TCP_SERVER_HOST:-server}
+      - TCP_SERVER_PORT=${SERVER_PORT:-8080}
+      - JWT_SECRET=${JWT_SECRET:-dev-secret-for-testing-only}
+      - JWT_EXPIRATION=${JWT_EXPIRATION:-24h}
+    
+    # Expose web server port to host machine (configurable via WEB_PORT)
+    ports:
+      - "${WEB_PORT:-3000}:${WEB_PORT:-3000}"
+    
+    # Wait for MongoDB to be available and healthy (primary dependency)
+    # TCP server is required for file content storage
+    depends_on:
+      mongodb:
+        condition: service_healthy
+      server:
+        condition: service_started
+    
+    # Connect to the same network
+    networks:
+      - app-network
+    
+    # Restart policy for production
+    restart: unless-stopped
+
+  # Service for Unit Tests
+  # Only runs when explicitly requested: docker-compose --profile tests up
+  tests:
+    profiles:
+      - tests
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: my-cpp-project
+    container_name: cpp-tests-container
+
+    environment:
+      - STORAGE_DIR=/tmp/data 
+    volumes:
+      - ./storage:/tmp/data 
+    
+    # Command to run the tests executable
+    command: ./myTests
+
+  # Service for C++ Client
+  # Only runs when explicitly requested: docker-compose --profile clients up
+  # Or use: docker-compose run --rm cpp-client ./client <server_ip> <server_port>
+  cpp-client:
+    profiles:
+      - clients
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: my-cpp-project
+    container_name: cpp-client-container
+    
+    # Connect to the same network as server
+    networks:
+      - app-network
+    
+    # Interactive mode is critical for client input
+    stdin_open: true
+    tty: true
+    
+    # Usage: docker-compose run --rm cpp-client ./client <server_ip> <server_port>
+    # Note: C++ client only accepts IP addresses (hostnames not supported)
+    # Get server IP: docker inspect <server_container_name> --format='{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}'
+    # Example: docker-compose run --rm cpp-client ./client 172.20.0.2 8080
+
+  # Service for Python Client
+  # Only runs when explicitly requested: docker-compose --profile clients up
+  # Or use: docker-compose run --rm python-client python client.py <server_ip> <server_port>
+  python-client:
+    profiles:
+      - clients
+    image: python:3
+    container_name: python-client-container
+    
+    # Connect to the same network as server
+    networks:
+      - app-network
+    
+    # Mount Python client directory 
+    volumes:
+      - ./src/Client:/app
+    working_dir: /app
+    
+    # Interactive mode for client input
+    stdin_open: true
+    tty: true
+    
+    # Environment variables for server connection (can be overridden)
+    environment:
+      - SERVER_IP=${SERVER_IP:-server}  # Can use service name "server" or IP
+      - SERVER_PORT=${SERVER_PORT:-8080}  # Default to 8080 if not set
+    
+    # Usage: docker-compose run --rm python-client python client.py <server_ip> <server_port>
+    # Example: docker-compose run --rm python-client python client.py server 8080
+    # Example: docker-compose run --rm python-client python client.py host.docker.internal 8080
+    # Example with custom port: docker-compose run --rm python-client python client.py server 9090
+
+volumes:
+  mongodb_data:
+    driver: local
+  mongodb_config:
+    driver: local
+
+networks:
+  app-network:
+    driver: bridge
+   

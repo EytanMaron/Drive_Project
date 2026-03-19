@@ -1,0 +1,32 @@
+{
+  "name": "drive-web-server",
+  "version": "1.0.0",
+  "description": "Google Drive-like web server API built with Express for Exercise 3",
+  "main": "src/web-server/app.js",
+  "scripts": {
+    "start": "node src/web-server/app.js",
+    "dev": "node --watch src/web-server/app.js",
+    "test": "node --test tests/web-server/*.test.js"
+  },
+  "keywords": [
+    "express",
+    "api",
+    "drive",
+    "mvc"
+  ],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "bcrypt": "^6.0.0",
+    "express": "^4.21.0",
+    "jsonwebtoken": "^9.0.3",
+    "uuid": "^13.0.0"
+  },
+  "devDependencies": {
+    "jest": "^30.2.0",
+    "supertest": "^7.1.4"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}

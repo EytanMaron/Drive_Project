@@ -1,0 +1,33 @@
+# Operating System files
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Build directories
+build/
+Build/
+build-debug/
+build-release/
+Debug/
+Release/
+
+# Compiled files
+*.o
+*.exe
+*.dll
+*.so
+*.a
+*.lib
+
+# Visual Studio specific
+*.suo
+*.user
+*.vs/
+.vscode/
+*.sln.docstates
+node_modules/
+# Other
+*.log
+
+# Node.js
+node_modules/

@@ -1,0 +1,67 @@
+# Documentation files - not needed in Docker image
+*.md
+ARCHITECTURE_DIAGRAM.md
+README.md
+WORK_BREAKDOWN.md
+
+# Node.js dependencies - installed in container
+node_modules/
+npm-debug.log*
+package-lock.json
+
+# React client node_modules - installed in container
+src/react-client/node_modules/
+
+# React Native mobile client - not needed for C++ server build
+src/mobile-client/
+
+# Web server node_modules - installed in container  
+src/web-server/node_modules/
+
+# Development files
+.git/
+.gitignore
+.env*
+
+# Test files - not needed in production image
+tests/
+*.test.js
+coverage/
+
+# IDE and editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Logs
+logs/
+*.log
+
+# Docker files
+.dockerignore
+docker-compose*.yml
+
+# Build artifacts
+build/
+*.o
+*.a
+*.so
+
+# Storage directory - mounted as volume
+storage/
+
+# Images and diagrams
+*.png
+*.jpg
+*.jpeg
+*.gif
+
+# CMake cache
+CMakeCache.txt
+CMakeFiles/
+
